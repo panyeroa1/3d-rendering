@@ -110,20 +110,30 @@ const PdfRenderer = ({ dataUrl }: { dataUrl: string }) => {
 };
 
 export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, isFocused, onReset }) => {
-    const [loadingStep, setLoadingStep] = useState(0);
+    const [progress, setProgress] = useState(0);
     const [showSplitView, setShowSplitView] = useState(false);
 
-    // Handle loading animation steps
+    // Handle detailed progress simulation
     useEffect(() => {
+        let interval: any;
         if (isLoading) {
-            setLoadingStep(0);
-            const interval = setInterval(() => {
-                setLoadingStep(prev => (prev < 3 ? prev + 1 : prev));
-            }, 2000); 
-            return () => clearInterval(interval);
+            setProgress(0);
+            interval = setInterval(() => {
+                setProgress(prev => {
+                    // Simulation: fast initially, slows down as it approaches 95%
+                    // We never hit 100% until isLoading becomes false from the parent
+                    if (prev >= 95) return 95;
+                    
+                    const remaining = 95 - prev;
+                    // Random increment based on remaining distance (Logarithmic-ish behavior)
+                    const increment = Math.max(0.1, Math.random() * (remaining / 25));
+                    return prev + increment;
+                });
+            }, 100); 
         } else {
-            setLoadingStep(0);
+            setProgress(100);
         }
+        return () => clearInterval(interval);
     }, [isLoading]);
 
     // Default to Split View when a new creation with an image is loaded
@@ -147,6 +157,14 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    };
+
+    // Helper to determine status text based on progress
+    const getStatusText = (pct: number) => {
+        if (pct < 25) return "Analyzing Visuals";
+        if (pct < 50) return "Identifying Patterns";
+        if (pct < 75) return "Generating Code";
+        return "Finalizing Build";
     };
 
   return (
@@ -228,26 +246,32 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ creation, isLoading, i
              {/* Technical Loading State */}
              <div className="w-full max-w-md space-y-8">
                 <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 mb-6 text-blue-500 animate-spin-slow">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    {/* Percentage Display */}
+                    <div className="text-5xl md:text-7xl font-bold text-zinc-100 mb-2 font-mono tracking-tighter">
+                        {Math.round(progress)}%
                     </div>
-                    <h3 className="text-zinc-100 font-mono text-lg tracking-tight">Constructing Environment</h3>
-                    <p className="text-zinc-500 text-sm mt-2">Interpreting visual data...</p>
+                    
+                    {/* Status Text */}
+                    <h3 className="text-zinc-400 font-mono text-xs uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                        {getStatusText(progress)}
+                    </h3>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 animate-[loading_3s_ease-in-out_infinite] w-1/3"></div>
+                {/* Determinate Progress Bar */}
+                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden relative shadow-inner">
+                    <div 
+                        className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-200 ease-out shadow-[0_0_15px_rgba(59,130,246,0.6)]"
+                        style={{ width: `${progress}%` }}
+                    ></div>
                 </div>
 
-                 {/* Terminal Steps */}
+                 {/* Terminal Steps - Synced with Progress */}
                  <div className="border border-zinc-800 bg-black/50 rounded-lg p-4 space-y-3 font-mono text-sm">
-                     <LoadingStep text="Analyzing visual inputs" active={loadingStep === 0} completed={loadingStep > 0} />
-                     <LoadingStep text="Identifying UI patterns" active={loadingStep === 1} completed={loadingStep > 1} />
-                     <LoadingStep text="Generating functional logic" active={loadingStep === 2} completed={loadingStep > 2} />
-                     <LoadingStep text="Compiling preview" active={loadingStep === 3} completed={loadingStep > 3} />
+                     <LoadingStep text="Analyzing visual inputs" active={progress < 25} completed={progress >= 25} />
+                     <LoadingStep text="Identifying UI patterns" active={progress >= 25 && progress < 50} completed={progress >= 50} />
+                     <LoadingStep text="Generating functional logic" active={progress >= 50 && progress < 75} completed={progress >= 75} />
+                     <LoadingStep text="Compiling preview" active={progress >= 75} completed={progress >= 99} />
                  </div>
              </div>
           </div>

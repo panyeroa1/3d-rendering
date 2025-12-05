@@ -4,30 +4,48 @@
 */
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-// Using gemini-2.5-pro for complex coding tasks.
+// Using gemini-3-pro-preview for complex coding tasks.
 const GEMINI_MODEL = 'gemini-3-pro-preview';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const SYSTEM_INSTRUCTION = `You are an expert AI Engineer and Product Designer specializing in "bringing artifacts to life".
-Your goal is to take a user uploaded file—which might be a polished UI design, a messy napkin sketch, a photo of a whiteboard with jumbled notes, or a picture of a real-world object (like a messy desk)—and instantly generate a fully functional, interactive, single-page HTML/JS/CSS application.
+const SYSTEM_INSTRUCTION = `You are "House Vision AI", a sophisticated architectural engine.
+Your goal is to accept a house specification (text prompt or image) and generate a **Single-Page HTML Dashboard** that visualizes the house completely.
 
-CORE DIRECTIVES:
-1. **Analyze & Abstract**: Look at the image.
-    - **Sketches/Wireframes**: Detect buttons, inputs, and layout. Turn them into a modern, clean UI.
-    - **Real-World Photos (Mundane Objects)**: If the user uploads a photo of a desk, a room, or a fruit bowl, DO NOT just try to display it. **Gamify it** or build a **Utility** around it.
-      - *Cluttered Desk* -> Create a "Clean Up" game where clicking items (represented by emojis or SVG shapes) clears them, or a Trello-style board.
-      - *Fruit Bowl* -> A nutrition tracker or a still-life painting app.
-    - **Documents/Forms**: specific interactive wizards or dashboards.
+**OUTPUT REQUIREMENTS**:
+Generate a single HTML file containing CSS and JS.
 
-2. **NO EXTERNAL IMAGES**:
-    - **CRITICAL**: Do NOT use <img src="..."> with external URLs (like imgur, placeholder.com, or generic internet URLs). They will fail.
-    - **INSTEAD**: Use **CSS shapes**, **inline SVGs**, **Emojis**, or **CSS gradients** to visually represent the elements you see in the input.
-    - If you see a "coffee cup" in the input, render a ☕ emoji or draw a cup with CSS. Do not try to load a jpg of a coffee cup.
+**DASHBOARD FEATURES (MUST IMPLEMENT ALL):**
+1.  **Header**: "House Vision Studio" branding + Project Name.
+2.  **Gallery Grid**:
+    *   Display 4 "Elevations" (Front, Back, Left, Right).
+    *   **CRITICAL**: Since you cannot generate real AI images on the fly in the HTML, you must **DRAW these views** using:
+        *   Advanced CSS (gradients, shapes, borders).
+        *   Inline SVGs (preferred for cleaner lines).
+        *   OR HTML5 Canvas rendering.
+        *   Make them look like "Architectural Blueprints" (white lines on blue background) or "Technical Renders".
+3.  **Floorplan Section**:
+    *   Render a detailed 2D Floorplan.
+    *   Use SVG or Canvas.
+    *   Show rooms, doors, windows based on the user's room count and dimensions.
+    *   Add labels (Kitchen, Living Room, Bedroom 1, etc.).
+4.  **3D Orbit Viewer**:
+    *   **MANDATORY**: Use **Three.js** (import via CDN: https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js).
+    *   Procedurally generate a 3D model of the house based on the dimensions provided.
+    *   It doesn't need to be perfect, but must match the description (e.g., flat roof vs pitched, 2 stories vs 1).
+    *   Add orbit controls so the user can spin around the house.
+    *   Add a simple animation loop (auto-rotation).
+5.  **Download Actions**:
+    *   Buttons to "Download Blueprint", "Export 3D Model", "Save Render". (These can be mock buttons or implement canvas-to-blob download).
 
-3. **Make it Interactive**: The output MUST NOT be static. It needs buttons, sliders, drag-and-drop, or dynamic visualizations.
-4. **Self-Contained**: The output must be a single HTML file with embedded CSS (<style>) and JavaScript (<script>). No external dependencies unless absolutely necessary (Tailwind via CDN is allowed).
-5. **Robust & Creative**: If the input is messy or ambiguous, generate a "best guess" creative interpretation. Never return an error. Build *something* fun and functional.
+**DESIGN AESTHETIC**:
+*   **Theme**: Dark Mode, CAD/AutoCAD inspired.
+*   **Colors**: Zinc-900 backgrounds, Cyan/Blue accents for lines, tech fonts (Monospace).
+*   **Layout**: Grid-based bento box layout.
+
+**ROBUSTNESS**:
+*   If the input is an image, analyze it to determine the style, then recreate that style in the 3D model and 2D views.
+*   Do not fail. If inputs are vague, make reasonable architectural assumptions (standard wall heights, standard room sizes).
 
 RESPONSE FORMAT:
 Return ONLY the raw HTML code. Do not wrap it in markdown code blocks (\`\`\`html ... \`\`\`). Start immediately with <!DOCTYPE html>.`;
@@ -35,12 +53,8 @@ Return ONLY the raw HTML code. Do not wrap it in markdown code blocks (\`\`\`htm
 export async function bringToLife(prompt: string, fileBase64?: string, mimeType?: string): Promise<string> {
   const parts: any[] = [];
   
-  // Strong directive for file-only inputs with emphasis on NO external images
-  const finalPrompt = fileBase64 
-    ? "Analyze this image/document. Detect what functionality is implied. If it is a real-world object (like a desk), gamify it (e.g., a cleanup game). Build a fully interactive web app. IMPORTANT: Do NOT use external image URLs. Recreate the visuals using CSS, SVGs, or Emojis." 
-    : prompt || "Create a demo app that shows off your capabilities.";
-
-  parts.push({ text: finalPrompt });
+  // The input prompt is now a rich structured string from the UI.
+  parts.push({ text: prompt });
 
   if (fileBase64 && mimeType) {
     parts.push({
@@ -59,7 +73,7 @@ export async function bringToLife(prompt: string, fileBase64?: string, mimeType?
       },
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.5, // Higher temperature for more creativity with mundane inputs
+        temperature: 0.4, // Lower temperature for more precise/consistent architectural outputs
       },
     });
 
